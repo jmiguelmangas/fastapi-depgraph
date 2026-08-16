@@ -1,7 +1,7 @@
-"""App con dependencias parametrizadas (factory/closure y functools.partial)
-y routers anidados con prefijo — patrones muy comunes en apps reales
-(rate limiting, chequeo de rol, versionado de API por router) que
-originalmente colapsaban en un único nodo indistinguible en el árbol.
+"""App with parametrized dependencies (factory/closure and
+functools.partial) and nested routers with a prefix — patterns very common
+in real apps (rate limiting, role checks, API versioning per router) that
+originally collapsed into a single indistinguishable node in the tree.
 """
 
 import functools

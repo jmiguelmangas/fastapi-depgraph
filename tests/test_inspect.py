@@ -29,7 +29,7 @@ def test_shared_dependencies_detects_get_settings_across_routes():
 def test_no_false_positive_for_non_shared_dependency():
     report = inspect_app(app)
     shared = report.shared_dependencies()
-    # get_db solo aparece en /items, no debería figurar como compartida
+    # get_db only appears in /items, it shouldn't show up as shared
     from tests.fixtures.sample_app import get_db
 
     assert get_db not in shared
@@ -42,10 +42,9 @@ def test_uncached_dependencies_flags_use_cache_false():
 
 
 def test_dependency_overrides_do_not_affect_the_static_graph():
-    # inspect_app() lee el árbol declarado en route.dependant, no el que
-    # efectivamente correría un request — dependency_overrides es un
-    # mecanismo de resolución en tiempo de ejecución (típico en tests) que
-    # no lo toca.
+    # inspect_app() reads the tree declared in route.dependant, not the one
+    # that would actually run for a request — dependency_overrides is a
+    # runtime resolution mechanism (typical in tests) that doesn't touch it.
     def fake_current_user():
         return {"user": "fake"}
 
@@ -63,7 +62,7 @@ def test_dependency_overrides_do_not_affect_the_static_graph():
 def test_async_vs_sync_detection():
     report = inspect_app(app)
     items_route = next(r for r in report.routes if r.path == "/items")
-    # get_db es una dependencia async (async generator)
+    # get_db is an async dependency (async generator)
     names_async = {n.name: n.is_async for n in items_route.root}
     db_entries = [
         is_async for name, is_async in names_async.items() if "get_db" in name

@@ -4,8 +4,8 @@ from tests.fixtures.parametrized_app import app, limiter_5, limiter_10
 
 
 def test_nested_router_prefixes_accumulate_in_path():
-    # api_router (prefix=/api) incluye v1_router (prefix=/v1) incluye
-    # items_router (prefix=/items) — el path final debe acumular los tres.
+    # api_router (prefix=/api) includes v1_router (prefix=/v1) includes
+    # items_router (prefix=/items) — the final path must accumulate all three.
     report = inspect_app(app)
     paths = {route.path for route in report.routes}
     assert paths == {"/api/v1/items/", "/api/ping"}
@@ -37,6 +37,6 @@ def test_functools_partial_dependencies_get_distinct_names():
 def test_mermaid_export_escapes_angle_brackets_in_closure_labels():
     report = inspect_app(app)
     mermaid = to_mermaid(report)
-    # <locals> sin escapar se interpreta como una etiqueta HTML en Mermaid.
+    # Unescaped <locals> gets interpreted as an HTML tag in Mermaid.
     assert "<locals>" not in mermaid
     assert "#lt;locals#gt;" in mermaid

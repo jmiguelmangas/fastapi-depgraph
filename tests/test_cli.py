@@ -13,16 +13,16 @@ def test_show_prints_tree(capsys):
 def test_show_shared_and_uncached_flags(capsys):
     main(["show", "tests.fixtures.sample_app:app", "--shared", "--uncached"])
     out = capsys.readouterr().out
-    assert "Dependencias compartidas entre rutas:" in out
+    assert "Dependencies shared across routes:" in out
     assert "get_settings" in out
-    assert "Dependencias con use_cache=False:" in out
+    assert "Dependencies with use_cache=False:" in out
     assert "get_request_id" in out
 
 
 def test_show_shared_flag_reports_none_when_nothing_shared(capsys):
     main(["show", "tests.fixtures.router_app:app", "--shared"])
     out = capsys.readouterr().out
-    assert "(ninguna)" in out
+    assert "(none)" in out
 
 
 def test_export_mermaid(capsys):
@@ -32,15 +32,15 @@ def test_export_mermaid(capsys):
 
 
 def test_malformed_app_path_exits_with_clear_message():
-    with pytest.raises(SystemExit, match="modulo:app"):
-        main(["show", "sin-dos-puntos"])
+    with pytest.raises(SystemExit, match="module:app"):
+        main(["show", "no-colon-here"])
 
 
 def test_missing_module_exits_with_clear_message():
-    with pytest.raises(SystemExit, match="No se pudo importar"):
-        main(["show", "modulo_que_no_existe_seguro:app"])
+    with pytest.raises(SystemExit, match="Could not import"):
+        main(["show", "definitely_not_a_real_module:app"])
 
 
 def test_missing_attribute_exits_with_clear_message():
-    with pytest.raises(SystemExit, match="No se encontró"):
-        main(["show", "tests.fixtures.sample_app:app_que_no_existe"])
+    with pytest.raises(SystemExit, match="Could not find"):
+        main(["show", "tests.fixtures.sample_app:nonexistent_app"])

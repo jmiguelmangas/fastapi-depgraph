@@ -1,4 +1,4 @@
-"""Exportadores del reporte: árbol ASCII para terminal y grafo Mermaid."""
+"""Report exporters: an ASCII tree for the terminal and a Mermaid graph."""
 
 from __future__ import annotations
 
@@ -45,15 +45,15 @@ def _ascii_node(
 
 
 def _safe_id(name: str) -> str:
-    # id estable entre corridas (hash() de str tiene seed aleatorio por proceso)
+    # id stable across runs (hash() of a str has a per-process random seed)
     return "n" + hashlib.md5(name.encode()).hexdigest()[:8]
 
 
 def _mermaid_escape(text: str) -> str:
-    # El nombre de una dependencia parametrizada (functools.partial o una
-    # closure) puede incluir el repr() de un valor arbitrario — con
-    # comillas, "<"/">", etc. Sin escapar rompe la sintaxis del label
-    # (delimitado por comillas) o se interpreta como una etiqueta HTML.
+    # The name of a parametrized dependency (functools.partial or a
+    # closure) may include the repr() of an arbitrary value — with quotes,
+    # "<"/">", etc. Left unescaped, it either breaks the label's syntax
+    # (quote-delimited) or gets interpreted as an HTML tag.
     return (
         text.replace("&", "#amp;")
         .replace('"', "#quot;")

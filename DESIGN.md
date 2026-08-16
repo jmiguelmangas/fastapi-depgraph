@@ -1,102 +1,101 @@
 # fastapi-depgraph — DESIGN
 
-Introspección del árbol de `Depends()` de una app FastAPI: qué dependencias
-resuelve cada ruta, en qué orden, cuáles se cachean, y (opcional) cuánto
-tarda cada una. Paquete público para la comunidad — no ligado a ningún
-proyecto interno.
+Introspection of a FastAPI app's `Depends()` tree: which dependencies each
+route resolves, in what order, which are cached, and (optionally) how long
+each one takes. A public package for the community — not tied to any
+internal project.
 
-- **Paquete PyPI:** `fastapi-depgraph`
+- **PyPI package:** `fastapi-depgraph`
 - **Import:** `fastapi_depgraph`
-- **Repo:** propio, público
+- **Repo:** own, public
 
 ---
 
-## 1. Problema
+## 1. Problem
 
-El sistema de DI de FastAPI es implícito por diseño: `Depends()` anidados se
-resuelven en orden no siempre obvio, y hoy no hay forma nativa de ver el
-árbol sin leer código o poner breakpoints. Los equipos que mantienen
-codebases grandes reportan que una parte notable del tiempo de resolución de
-incidentes se va en rastrear esa lógica de resolución en vez de la lógica de
-negocio en sí — y es un problema que crece con el tamaño del equipo, no con
-la complejidad del dominio.
+FastAPI's DI system is implicit by design: nested `Depends()` resolve in an
+order that isn't always obvious, and today there's no native way to see the
+tree without reading code or setting breakpoints. Teams maintaining large
+codebases report that a noticeable share of incident-resolution time goes
+into tracing that resolution logic instead of the actual business logic —
+and it's a problem that grows with team size, not with domain complexity.
 
-Dos síntomas concretos que un desarrollador se encuentra sin herramienta:
+Two concrete symptoms a developer runs into without a tool:
 
-- No sabe si una dependencia cara (una query a DB, una llamada externa) se
-  está **recomputando en cada sub-dependencia** por no estar cacheada
-  (`use_cache=False`, o dependencias no-hasheables que rompen el caché
-  automático de FastAPI).
-- No sabe qué rutas **comparten** una dependencia pesada, así que optimizar
-  o cachear esa dependencia en un sitio y no en otro es fácil de pasar por
-  alto.
+- No way to tell if an expensive dependency (a DB query, an external call)
+  is being **recomputed on every sub-dependency** because it isn't cached
+  (`use_cache=False`, or unhashable dependencies that break FastAPI's
+  automatic cache).
+- No way to tell which routes **share** a heavy dependency, so optimizing
+  or caching that dependency in one place and not another is easy to miss.
 
-## 2. Alcance
+## 2. Scope
 
-**Dentro (v0.1 — grafo estático, sin tocar runtime):**
+**In (v0.1 — static graph, no runtime instrumentation):**
 
-- Introspeccionar `app.routes` y el árbol `Dependant` de cada `APIRoute`
-  (FastAPI ya lo construye al registrar la ruta; se lee, no se reconstruye).
-- Reportar por ruta: árbol de dependencias con nombre, si es sync o async,
-  si está cacheada (`use_cache`), y su profundidad de anidamiento.
-- Detectar dependencias **repetidas entre rutas** (candidatas a compartir
-  caché u optimización) y dependencias marcadas `use_cache=False` (recompute
-  en cada resolución, incluso dentro del mismo request si aparecen dos veces
-  en el árbol).
-- Exportar: árbol ASCII en terminal, o grafo en formato Mermaid/DOT para
-  pegarlo en documentación.
+- Introspect `app.routes` and the `Dependant` tree of each `APIRoute`
+  (FastAPI already builds it when the route is registered; it's read, not
+  reconstructed).
+- Report per route: dependency tree with name, sync or async, whether it's
+  cached (`use_cache`), and its nesting depth.
+- Detect dependencies **repeated across routes** (candidates for shared
+  caching/optimization) and dependencies marked `use_cache=False`
+  (recomputed on every resolution, even within the same request if they
+  appear twice in the tree).
+- Export: ASCII tree in the terminal, or a graph in Mermaid/DOT format to
+  paste into documentation.
 - CLI: `depgraph show app:app` / `depgraph export app:app --format mermaid`.
 
-**Dentro (v0.2 — timing opcional, opt-in explícito):**
+**In (v0.2 — optional timing, explicit opt-in):**
 
-- Un `TimedDepends` como reemplazo drop-in de `Depends()` que el usuario elige
-  usar en las dependencias que le interesa medir. Registra tiempo de
-  ejecución en una contextvar por request, expuesto vía endpoint de debug
-  opcional (`/__depgraph__/last`) o log estructurado.
+- A `TimedDepends` as a drop-in replacement for `Depends()` that the user
+  chooses to use on the dependencies they care about measuring. Records
+  execution time in a per-request contextvar, exposed via an optional debug
+  endpoint (`/__depgraph__/last`) or structured logging.
 
-**Fuera (no-goals):**
+**Out (non-goals):**
 
-- No hace profiling general de la app (para eso ya hay APMs con OpenTelemetry).
-- No detecta llamadas bloqueantes dentro de un `async def` — es un problema
-  relacionado pero distinto (bloqueo del event loop vs. visibilidad del
-  grafo de DI); mezclar los dos alcances en un paquete lo complica sin
-  necesidad.
-- No modifica el comportamiento de resolución de dependencias de FastAPI —
-  es de solo lectura en v0.1, y opt-in explícito en v0.2.
+- No general app profiling (that's what APMs with OpenTelemetry are for).
+- No detection of blocking calls inside an `async def` — a related but
+  distinct problem (event-loop blocking vs. DI graph visibility); mixing
+  the two scopes in one package complicates it needlessly.
+- Doesn't modify FastAPI's dependency-resolution behavior — read-only in
+  v0.1, explicit opt-in in v0.2.
 
-## 3. Decisión de diseño: nada de monkeypatching de `solve_dependencies`
+## 3. Design decision: no monkeypatching `solve_dependencies`
 
-La forma "fácil" de medir timing sería parchear la función interna de
-FastAPI que resuelve dependencias. Se descarta para v0.1 y se limita en v0.2:
+The "easy" way to measure timing would be to patch FastAPI's internal
+dependency-resolution function. Ruled out for v0.1 and constrained in v0.2:
 
-- Es API interna no pública (`fastapi.dependencies.utils`), cambia entre
-  versiones sin aviso en el changelog público, y un parche roto en
-  producción es peor que no tener la herramienta.
-- La introspección estática (leer `route.dependant` después del registro) es
-  mucho más estable: es la misma estructura que FastAPI ya usa internamente
-  para servir requests, solo se lee después de construida.
-- Para timing, `TimedDepends` es explícito y no toca nada interno — el
-  usuario decide qué medir, envolviendo la dependencia él mismo. Menos mágico,
-  más mantenible, y sigue funcionando si FastAPI cambia su motor de DI.
+- It's non-public internal API (`fastapi.dependencies.utils`), changes
+  between versions without notice in the public changelog, and a broken
+  patch in production is worse than not having the tool at all.
+- Static introspection (reading `route.dependant` after registration) is
+  far more stable: it's the same structure FastAPI already uses internally
+  to serve requests, only read after it's been built.
+- For timing, `TimedDepends` is explicit and touches nothing internal — the
+  user decides what to measure by wrapping the dependency themselves. Less
+  magic, more maintainable, and keeps working even if FastAPI changes its
+  DI engine.
 
-## 4. API pública
+## 4. Public API
 
 ```python
 from fastapi_depgraph import inspect_app
 
 report = inspect_app(app)
 
-report.routes                      # lista de RouteDependencyTree
-report.shared_dependencies()       # deps usadas en 2+ rutas
-report.uncached_dependencies()     # use_cache=False, candidatas a revisar
+report.routes                      # list of RouteDependencyTree
+report.shared_dependencies()       # deps used in 2+ routes
+report.uncached_dependencies()     # use_cache=False, worth a look
 
 for route in report.routes:
     route.path                     # "/users/{id}"
-    route.tree                     # nodo raíz: nombre, sync/async, hijos, cached
+    route.tree                     # root node: name, sync/async, children, cached
 ```
 
 ```python
-# v0.2 — timing opt-in
+# v0.2 — opt-in timing
 from fastapi_depgraph import TimedDepends
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -105,101 +104,103 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 @app.get("/me")
 async def me(user = TimedDepends(get_current_user)):
     ...
-# el timing queda disponible en el contexto del request, sin tocar
-# el motor de resolución de FastAPI
+# timing is available in the request context, without touching
+# FastAPI's resolution engine
 ```
 
-## 5. Estructura del repo
+## 5. Repo structure
 
 ```
 fastapi-depgraph/
 ├── src/fastapi_depgraph/
 │   ├── __init__.py        # inspect_app, TimedDepends
-│   ├── inspect.py         # lectura de route.dependant, construcción del reporte
+│   ├── inspect.py         # reads route.dependant, builds the report
 │   ├── report.py          # RouteDependencyTree, shared_dependencies, etc.
 │   ├── export.py          # ASCII, Mermaid, DOT
 │   ├── timing.py          # TimedDepends + contextvar (v0.2)
 │   └── cli.py
 ├── tests/
-│   └── fixtures/           # apps FastAPI de juguete con árboles de deps variados
+│   └── fixtures/           # toy FastAPI apps with varied dependency trees
 ├── examples/
 ├── CLAUDE.md
 ├── DESIGN.md
-└── .github/workflows/      # lint, tests contra varias versiones de FastAPI
+└── .github/workflows/      # lint, tests against several FastAPI versions
 ```
 
-Tests: apps FastAPI de juguete con casos conocidos (deps compartidas,
-`use_cache=False`, anidamiento profundo) y aserciones sobre el árbol
-resultante. Matriz de CI contra 2-3 versiones recientes de FastAPI, porque
-`route.dependant` es la única superficie interna que se toca y conviene
-detectar pronto si cambia de forma.
+Tests: toy FastAPI apps with known cases (shared deps, `use_cache=False`,
+deep nesting) and assertions on the resulting tree. CI matrix against 2-3
+recent FastAPI versions, because `route.dependant` is the only internal
+surface touched and it's worth detecting early if its shape changes.
 
 ## 6. Roadmap
 
-**0.1 — el mínimo defendible (esta tarde/esta semana)**
-`inspect_app`, `shared_dependencies()`, `uncached_dependencies()`, export
-ASCII y Mermaid, CLI básico. Sin timing. Un ejemplo con una app de tamaño
-medio (10-15 rutas, deps anidadas) para el README — es lo que vende el
-paquete de un vistazo.
+**0.1 — the defensible minimum (this afternoon/this week)**
+`inspect_app`, `shared_dependencies()`, `uncached_dependencies()`, ASCII and
+Mermaid export, basic CLI. No timing. A medium-sized example app (10-15
+routes, nested deps) for the README — that's what sells the package at a
+glance.
 
-**0.2 — timing opt-in**
-`TimedDepends`, endpoint de debug opcional, documentación clara de que es
-opt-in y no instrumenta nada automáticamente.
+**0.2 — opt-in timing**
+`TimedDepends`, optional debug endpoint, clear documentation that it's
+opt-in and instruments nothing automatically.
 
-**Después:** integración con Mermaid embebido en `/docs` (un tab extra en
-Swagger UI vía `app.mount` no es trivial pero sería el diferencial visual);
-evaluar exportar a OpenTelemetry spans si hay demanda real.
+**Later:** Mermaid embedded in `/docs` (an extra tab in Swagger UI via
+`app.mount` isn't trivial but would be the visual differentiator);
+evaluate exporting to OpenTelemetry spans if there's real demand.
 
-## 7. Riesgos
+## 7. Risks
 
-- **`route.dependant` es API interna, no pública.** Mitigación: superficie de
-  contacto mínima (un solo atributo leído), matriz de CI contra varias
-  versiones de FastAPI, y fallback claro (error explícito, no silencioso) si
-  la estructura cambia de forma inesperada.
+- **`route.dependant` is internal API, not public.** Mitigation: minimal
+  contact surface (a single attribute read), CI matrix against several
+  FastAPI versions, and a clear fallback (explicit error, not silent) if
+  the structure changes shape unexpectedly.
 
-  Este riesgo ya se materializó dos veces, antes de publicar, ambas en
-  versiones recientes de Starlette (las mismas que ya estaban en la matriz
-  de CI — el fixture de test simplemente nunca ejercitaba el patrón roto):
+  This risk already materialized twice, before publishing, both on recent
+  Starlette versions (the same ones already in the CI matrix — the test
+  fixture simply never exercised the broken pattern):
 
-  1. Las rutas incluidas con `include_router()` dejaron de aplanarse en
-     `app.routes` — quedan envueltas en un objeto interno sin tipo público.
-     `inspect_app()` devolvía silenciosamente 0 rutas para cualquier app
-     que usara `APIRouter`, es decir, casi cualquier app real.
-  2. Incluso bajando al router original, el `path` de cada `APIRoute` y su
-     `dependant` quedaban *sin* el prefijo y sin las dependencias pasadas a
+  1. Routes included with `include_router()` stopped being flattened into
+     `app.routes` — they get wrapped in an object with no public type.
+     `inspect_app()` silently returned 0 routes for any app using
+     `APIRouter`, i.e. almost any real app.
+  2. Even after descending into the original router, each `APIRoute`'s
+     `path` and its `dependant` were left *without* the prefix and without
+     the dependencies passed to
      `include_router(..., dependencies=[...])`/`FastAPI(dependencies=[...])`
-     — esa fusión se difiere ahora hasta el momento de resolver un request
-     en vez de aplicarse al registrar la ruta. Sin corregirlo, el reporte
-     mostraba paths *incorrectos* (`/x` en vez de `/v1/x`) — peor que 0
-     rutas, porque no se nota a simple vista.
+     — that merge is now deferred until a request is resolved instead of
+     being applied when the route is registered. Left unfixed, the report
+     showed *incorrect* paths (`/x` instead of `/v1/x`) — worse than 0
+     routes, because it isn't obvious at a glance.
 
-  Se corrigió con `_iter_resolved_routes()` en `inspect.py`: baja
-  recursivamente por cualquier objeto que exponga `.routes` o
-  `.original_router.routes` (duck typing, sin importar el tipo interno), y
-  cuando el router expone un método `effective_candidates()` — el mismo
-  cálculo que Starlette usa para resolver requests reales — lo usa para
-  obtener el path y el dependant ya fusionados. Si esa llamada falla o el
-  método no existe (Starlette viejo, o una forma futura distinta), cae de
-  vuelta al router original sin prefijo/dependencias de inclusión en vez de
-  romper la introspección. Regresión en `tests/fixtures/router_app.py`,
-  `tests/fixtures/parametrized_app.py`, `tests/test_router_discovery.py` y
+  Fixed with `_iter_resolved_routes()` in `inspect.py`: it recursively
+  descends into any object exposing `.routes` or `.original_router.routes`
+  (duck typing, regardless of the internal type), and when the router
+  exposes an `effective_candidates()` method — the same computation
+  Starlette uses to resolve real requests — it uses that to get the
+  already-merged path and dependant. If that call fails or the method
+  doesn't exist (older Starlette, or a different future shape), it falls
+  back to the original router without the prefix/inclusion dependencies
+  instead of breaking introspection. Regression coverage in
+  `tests/fixtures/router_app.py`, `tests/fixtures/parametrized_app.py`,
+  `tests/test_router_discovery.py` and
   `tests/test_parametrized_dependencies.py`.
 
-  De paso, el mismo camino de introspección más permisivo (duck typing por
-  `.dependant`/`.path`) empezó a colar rutas WebSocket (`APIWebSocketRoute`
-  también tiene `.dependant` y `.path`, pero no `.methods`) — se cerró
-  exigiendo `.methods` no-`None` para aceptar algo como ruta HTTP. Ver
-  `tests/fixtures/websocket_app.py`.
-- **Falsos positivos en "dependencias compartidas".** Dos dependencias con el
-  mismo nombre de función pero definidas en módulos distintos no son la
-  misma — comparar por identidad de la función (`id()`/referencia), no por
-  nombre, desde el diseño inicial.
-- **Ya existe algo similar: `fastapi-di-viz`.** Cubre justo la parte base de
-  v0.1 (camina el árbol y exporta a Mermaid/DOT), pero está parado desde
-  diciembre 2024, un solo mantenedor, sin `shared_dependencies()`,
-  `uncached_dependencies()` ni timing. Dos caminos honestos: (a) partir de
-  cero con el diferencial real (detección de deps compartidas/no-cacheadas +
-  timing opt-in), presentándolo como sucesor con alcance mayor, o (b)
-  contactar al autor y proponer esas features como PR/fork antes de
-  fragmentar el ecosistema con un nombre nuevo. (b) es más lento pero más
-  sano para la comunidad; (a) es más rápido y da control total del roadmap.
+  Along the way, that same more permissive introspection path (duck typing
+  on `.dependant`/`.path`) started letting WebSocket routes leak through
+  (`APIWebSocketRoute` also has `.dependant` and `.path`, but no
+  `.methods`) — closed by requiring a non-`None` `.methods` to accept
+  something as an HTTP route. See `tests/fixtures/websocket_app.py`.
+- **False positives in "shared dependencies".** Two dependencies with the
+  same function name but defined in different modules aren't the same —
+  compare by function identity (`id()`/reference), not by name, from the
+  initial design.
+- **Something similar already exists: `fastapi-di-viz`.** It covers exactly
+  the base part of v0.1 (walks the tree and exports to Mermaid/DOT), but
+  has been stalled since December 2024, single maintainer, no
+  `shared_dependencies()`, `uncached_dependencies()`, or timing. Two honest
+  paths: (a) start from scratch with the real differentiator (shared/
+  uncached dependency detection + opt-in timing), presenting it as a
+  successor with broader scope, or (b) contact the author and propose those
+  features as a PR/fork before fragmenting the ecosystem with a new name.
+  (b) is slower but healthier for the community; (a) is faster and gives
+  full control over the roadmap.

@@ -1,6 +1,6 @@
-"""App con una ruta WebSocket junto a una HTTP normal — regresión para
-confirmar que WebSocket no se cuela en el árbol (tiene ``dependant`` y
-``path`` igual que una ruta HTTP, pero no ``methods``).
+"""App with a WebSocket route alongside a regular HTTP one — regression to
+confirm WebSocket doesn't leak into the tree (it has ``dependant`` and
+``path`` just like an HTTP route, but no ``methods``).
 """
 
 from fastapi import FastAPI, WebSocket

@@ -1,19 +1,19 @@
 # fastapi-depgraph
 
-Introspección del árbol de `Depends()` de una app FastAPI: qué dependencias
-resuelve cada ruta, cuáles se comparten entre rutas, cuáles no están
-cacheadas, y export a ASCII o Mermaid.
+Introspection of a FastAPI app's `Depends()` tree: which dependencies each
+route resolves, which are shared across routes, which aren't cached, and
+export to ASCII or Mermaid.
 
-Lee `route.dependant` — la estructura que FastAPI ya construye internamente
-al registrar cada ruta — en vez de reparsear firmas a mano.
+Reads `route.dependant` — the structure FastAPI already builds internally
+when each route is registered — instead of reparsing signatures by hand.
 
-## Instalación
+## Install
 
 ```bash
 pip install fastapi-depgraph
 ```
 
-## Uso — CLI
+## Usage — CLI
 
 ```bash
 depgraph show myapp.main:app
@@ -21,21 +21,21 @@ depgraph show myapp.main:app --shared --uncached
 depgraph export myapp.main:app --format mermaid > graph.mmd
 ```
 
-## Uso — API
+## Usage — API
 
 ```python
 from fastapi_depgraph import inspect_app
 
 report = inspect_app(app)
 
-report.shared_dependencies()    # {callable: ["/ruta1", "/ruta2"]}
-report.uncached_dependencies()  # ["modulo.get_request_id", ...]
+report.shared_dependencies()    # {callable: ["/route1", "/route2"]}
+report.uncached_dependencies()  # ["module.get_request_id", ...]
 
 for route in report.routes:
     print(route.path, route.root.name)
 ```
 
-## Ejemplo
+## Example
 
 ```bash
 $ depgraph show examples/basic_app.py:app --shared --uncached
@@ -50,82 +50,81 @@ GET /users/me
       └── basic_app.get_request_id (sync) [no-cache]
 ...
 
-Dependencias compartidas entre rutas:
+Dependencies shared across routes:
   get_current_user: /orders, /orders/{order_id}, /users/me
   get_db: /orders, /orders/{order_id}, /users, /users/me
   get_settings: /orders, /orders/{order_id}, /users, /users/me
   get_request_id: /orders, /orders/{order_id}, /users/me
   get_orders_service: /orders, /orders/{order_id}
 
-Dependencias con use_cache=False:
+Dependencies with use_cache=False:
   basic_app.get_request_id
 ```
 
-De un vistazo: `get_db` y `get_settings` se resuelven en cuatro rutas
-distintas — si una se vuelve cara, es ahí donde conviene mirar primero. Y
-`get_request_id` está marcada como no-cacheada a propósito (viene de un
-header por request), pero en un caso real esa marca es la que te avisa de
-un `use_cache=False` que alguien olvidó o puso sin querer.
+At a glance: `get_db` and `get_settings` get resolved on four different
+routes — if one gets expensive, that's where to look first. And
+`get_request_id` is intentionally marked as uncached (it comes from a
+per-request header), but in a real case that's the flag that warns you
+about a `use_cache=False` someone forgot or added by mistake.
 
-## Qué patrones soporta
+## What patterns it handles
 
-Probado, con test de regresión, contra los patrones reales que rompían
-versiones tempranas de este paquete:
+Tested, with regression coverage, against the real patterns that broke
+early versions of this package:
 
-- `APIRouter` + `include_router()`, con cualquier nivel de anidamiento y
-  prefijo (`/api` → `/v1` → `/items` se acumula correctamente en el path).
-- Dependencias declaradas en `include_router(router, dependencies=[...])` o
-  `FastAPI(dependencies=[...])` — un guard de auth para todo un router se ve
-  en el árbol de cada ruta que cubre.
-- Apps montadas con `app.mount(sub_app)` (nota de path abajo).
-- Dependencias parametrizadas por factory (`def make_limiter(n): def
-  check(): ...; return check`) o `functools.partial(fn, role="admin")`: dos
-  instancias con distinto valor capturado/bindeado se muestran como nodos
-  distintos (`check{n=5}` vs. `check{n=10}`, `require_role(role='admin')`
-  vs. `require_role(role='editor')`) en vez de colapsar en un solo nombre.
-- `Depends(AlgunaClase())` (instancia) y `Depends(AlgunaClase)` (la clase
-  misma) — ambos patrones de "clase como dependencia" documentados en
-  FastAPI.
+- `APIRouter` + `include_router()`, at any level of nesting and with any
+  prefix (`/api` → `/v1` → `/items` correctly accumulates in the path).
+- Dependencies declared on `include_router(router, dependencies=[...])` or
+  `FastAPI(dependencies=[...])` — an auth guard for an entire router shows
+  up in the tree of every route it covers.
+- Apps mounted with `app.mount(sub_app)` (path caveat below).
+- Dependencies parametrized by a factory (`def make_limiter(n): def
+  check(): ...; return check`) or `functools.partial(fn, role="admin")`:
+  two instances with different captured/bound values show up as distinct
+  nodes (`check{n=5}` vs. `check{n=10}`, `require_role(role='admin')` vs.
+  `require_role(role='editor')`) instead of collapsing into one name.
+- `Depends(SomeClass())` (instance) and `Depends(SomeClass)` (the class
+  itself) — both "class as a dependency" patterns documented by FastAPI.
 
-## Limitaciones conocidas
+## Known limitations
 
-- **Apps montadas con `app.mount(sub_app)`** se recorren (Starlette expone
-  las rutas del sub-app en `Mount.routes`), pero el `path` reportado es
-  relativo al sub-app, sin el prefijo del mount.
-- Solo se inspeccionan rutas HTTP; rutas WebSocket no forman parte del
-  árbol (a propósito — `Depends()` en WebSocket no tiene caché de request
-  ni el mismo modelo de resolución, ver DESIGN.md §2).
-- Si dos instancias distintas de la misma clase se usan como dependencias
-  en rutas distintas, `shared_dependencies()` las trata correctamente como
-  no compartidas (compara por identidad), pero se muestran con el mismo
-  label en el árbol/Mermaid salvo que la clase misma sea una closure — no
-  hay forma genérica de nombrar una instancia arbitraria de forma legible.
-- `app.dependency_overrides` (el mecanismo estándar para inyectar test
-  doubles) no se refleja: el árbol muestra la dependencia tal como está
-  declarada en el código, no la que efectivamente correría bajo un
-  override activo — es un grafo estático, ver DESIGN.md §2.
-- El nombre de una dependencia parametrizada incluye el `repr()` de los
-  valores capturados/bindeados — si esos valores son secretos (tokens,
-  API keys pasados como default), van a aparecer en la salida de `depgraph
-  show`/`export`. No pegues ese output en canales públicos sin revisar qué
-  dependencias parametrizadas tiene tu app.
-- La fusión de path/dependencias para routers incluidos (`include_router`)
-  usa, cuando está disponible, un método interno sin contrato público que
-  Starlette expone para resolver rutas en tiempo real; si esa forma cambia
-  en una versión futura, el paquete degrada de forma silenciosa al
-  comportamiento anterior (sin prefijo acumulado ni dependencias de
-  inclusión) en vez de fallar — la matriz de CI corre contra varias
-  versiones de FastAPI para detectarlo pronto si pasa.
+- **Apps mounted with `app.mount(sub_app)`** are walked (Starlette exposes
+  the sub-app's routes through `Mount.routes`), but the reported `path` is
+  relative to the sub-app, without the mount's prefix.
+- Only HTTP routes are inspected; WebSocket routes aren't part of the tree
+  (intentionally — `Depends()` on WebSocket doesn't have per-request
+  caching or the same resolution model, see DESIGN.md §2).
+- If two different instances of the same class are used as dependencies on
+  different routes, `shared_dependencies()` correctly treats them as not
+  shared (it compares by identity), but they're shown with the same label
+  in the tree/Mermaid unless the class itself is a closure — there's no
+  generic way to give an arbitrary instance a readable name.
+- `app.dependency_overrides` (the standard mechanism for injecting test
+  doubles) isn't reflected: the tree shows the dependency as declared in
+  the code, not the one that would actually run under an active override —
+  it's a static graph, see DESIGN.md §2.
+- The name of a parametrized dependency includes the `repr()` of its
+  captured/bound values — if those values are secrets (tokens, API keys
+  passed as defaults), they'll show up in `depgraph show`/`export` output.
+  Don't paste that output into public channels without checking what
+  parametrized dependencies your app has.
+- Merging the path/dependencies for included routers (`include_router`)
+  uses, when available, an internal method with no public contract that
+  Starlette exposes to resolve routes at request time; if that shape
+  changes in a future version, the package silently degrades to the
+  previous behavior (no accumulated prefix or inclusion dependencies)
+  instead of failing — the CI matrix runs against several FastAPI versions
+  to catch it early if that happens.
 
-## Por qué
+## Why
 
-El sistema de DI de FastAPI es implícito: `Depends()` anidados se resuelven
-sin que haya forma nativa de ver el árbol. Dos preguntas que este paquete
-responde y que hoy no tienen forma directa de contestarse:
+FastAPI's DI system is implicit: nested `Depends()` resolve with no native
+way to see the tree. Two questions this package answers that today have no
+direct way to answer:
 
-- ¿Qué dependencias pesadas se están **recomputando** en vez de cachearse
+- Which expensive dependencies are being **recomputed** instead of cached
   (`use_cache=False`)?
-- ¿Qué rutas **comparten** una dependencia cara, para saber dónde optimizar
-  una vez y no en cinco sitios distintos?
+- Which routes **share** an expensive dependency, so you know where to
+  optimize once instead of in five different places?
 
-Ver `DESIGN.md` para el resto del alcance y las decisiones de diseño.
+See `DESIGN.md` for the rest of the scope and design decisions.

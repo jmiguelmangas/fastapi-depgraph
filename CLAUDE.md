@@ -1,53 +1,54 @@
 # CLAUDE.md
 
-Contexto de proyecto para Claude Code. Ver `DESIGN.md` para el diseño
-completo (problema, alcance, decisiones, roadmap, riesgos).
+Project context for Claude Code. See `DESIGN.md` for the full design
+(problem, scope, decisions, roadmap, risks).
 
-## Qué es
+## What this is
 
-`fastapi-depgraph`: introspección del árbol de `Depends()` de una app
-FastAPI, leyendo `route.dependant` (estructura interna de FastAPI, ya
-construida al registrar cada ruta — no se reparsean firmas a mano).
+`fastapi-depgraph`: introspection of a FastAPI app's `Depends()` tree,
+reading `route.dependant` (FastAPI's internal structure, already built when
+each route is registered — signatures are never reparsed by hand).
 
-Paquete público, independiente, sin relación con ningún proyecto interno.
+Public, standalone package, not tied to any internal project.
 
 ## Prior art
 
-Existe `fastapi-di-viz` (PyPI, dotcs/fastapi-di-viz) — parado desde dic.
-2024, reparsea firmas en vez de usar `route.dependant`, sin detección de
-dependencias compartidas/no-cacheadas, y con un bug de colisión de nombres
-(usa `__name__` sin el módulo). Este paquete se escribió desde cero por eso
-mismo, no como fork. Vale la pena abrir un issue allí mencionando este
-proyecto como gesto de comunidad, sin que bloquee nada.
+`fastapi-di-viz` (PyPI, dotcs/fastapi-di-viz) already exists — stalled
+since Dec. 2024, reparses signatures instead of using `route.dependant`,
+has no shared/uncached dependency detection, and has a name-collision bug
+(uses `__name__` without the module). This package was written from
+scratch for exactly that reason, not as a fork. Worth opening an issue
+there mentioning this project as a community gesture, without blocking
+anything.
 
-## Convenciones
+## Conventions
 
-- Pensar antes de codear; reusar lo que ya exista antes de escribir algo
-  nuevo.
-- Priorizar legibilidad sobre cleverness.
-- Lint (`ruff check` + `ruff format`) y tests (`pytest`) después de
-  cualquier cambio, antes de darlo por terminado.
-- Comparar dependencias por identidad de función (`is`), nunca por nombre —
-  es la causa del bug de `fastapi-di-viz` que este paquete evita a propósito.
-- Sin dependencias de runtime más allá de `fastapi` en sí. `pytest` es
-  dev-only.
-- Sin monkeypatching de APIs internas de resolución de FastAPI
-  (`solve_dependencies` y similares) — ver DESIGN.md §3. Solo se lee
-  `route.dependant` después de que FastAPI ya lo construyó.
+- Think before coding; reuse what already exists before writing something
+  new.
+- Prioritize readability over cleverness.
+- Lint (`ruff check` + `ruff format`) and tests (`pytest`) after any
+  change, before calling it done.
+- Compare dependencies by function identity (`is`), never by name — that's
+  the cause of the `fastapi-di-viz` bug this package deliberately avoids.
+- No runtime dependencies beyond `fastapi` itself. `pytest` is dev-only.
+- No monkeypatching of FastAPI's internal resolution APIs
+  (`solve_dependencies` and similar) — see DESIGN.md §3. Only
+  `route.dependant` is read, after FastAPI has already built it.
 
-## Estructura
+## Structure
 
 ```
 src/fastapi_depgraph/
-├── inspect.py   # inspect_app() + DepGraphReport — el core
+├── inspect.py   # inspect_app() + DepGraphReport — the core
 ├── export.py    # to_ascii(), to_mermaid()
 └── cli.py       # depgraph show / depgraph export
 tests/
-├── fixtures/sample_app.py   # app FastAPI de juguete con deps compartidas y no-cacheadas
-└── test_inspect.py
+├── fixtures/       # toy FastAPI apps covering routers, parametrized deps,
+│                   # class-based deps, WebSocket routes
+└── test_*.py
 ```
 
-## Comandos
+## Commands
 
 ```bash
 pip install -e ".[dev]"
@@ -56,8 +57,11 @@ ruff check src/ tests/ --fix && ruff format src/ tests/
 PYTHONPATH=. depgraph show tests.fixtures.sample_app:app --shared --uncached
 ```
 
-## Estado actual
+## Current status
 
-v0.1 funcional: `inspect_app`, `shared_dependencies()`,
-`uncached_dependencies()`, export ASCII y Mermaid, CLI con `show`/`export`.
-6 tests pasando. Ver TASKS.md para lo pendiente antes de publicar.
+v0.1 functional: `inspect_app`, `shared_dependencies()`,
+`uncached_dependencies()`, ASCII and Mermaid export, CLI with
+`show`/`export`. 23 tests passing, including regressions for
+`APIRouter`/`include_router()` nesting, parametrized (factory/closure,
+`functools.partial`) dependencies, and WebSocket route exclusion. See
+TASKS.md for what's left before/after publishing.

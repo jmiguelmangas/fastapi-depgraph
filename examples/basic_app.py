@@ -1,8 +1,8 @@
-"""Ejemplo más realista: una app con capas (config, db, auth, servicios) y
-varias rutas compartiendo dependencias, para ver el reporte con algo de
-sustancia.
+"""A more realistic example: an app with layers (config, db, auth,
+services) and several routes sharing dependencies, to see the report with
+some actual substance.
 
-Correr:
+Run:
     PYTHONPATH=examples depgraph show basic_app:app --shared --uncached
 """
 
@@ -20,12 +20,12 @@ def get_settings() -> Settings:
 
 
 async def get_db(settings: Annotated[Settings, Depends(get_settings)]):
-    # simula una sesión de DB por request
+    # simulates a per-request DB session
     yield f"session({settings.db_url})"
 
 
 def get_request_id(x_request_id: Annotated[str | None, Header()] = None) -> str:
-    # cada request tiene un id distinto: no tiene sentido cachearlo
+    # each request has a different id: caching it wouldn't make sense
     return x_request_id or "generated-id"
 
 

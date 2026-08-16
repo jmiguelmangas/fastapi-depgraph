@@ -1,70 +1,74 @@
 # TASKS
 
-## Hecho (v0.1)
+## Done (v0.1)
 
-- [x] `inspect_app()` construye el árbol por ruta desde `route.dependant`
-- [x] `DepGraphReport.shared_dependencies()` — comparación por identidad, no
-      por nombre
+- [x] `inspect_app()` builds the per-route tree from `route.dependant`
+- [x] `DepGraphReport.shared_dependencies()` — compares by identity, not
+      by name
 - [x] `DepGraphReport.uncached_dependencies()`
-- [x] Detección sync/async por nodo
-- [x] Export ASCII (`to_ascii`) y Mermaid (`to_mermaid`, con dedup de nodos)
+- [x] Sync/async detection per node
+- [x] ASCII export (`to_ascii`) and Mermaid (`to_mermaid`, with node dedup)
 - [x] CLI: `depgraph show [--shared] [--uncached]`, `depgraph export --format mermaid`
-- [x] Fixture de test con caso real (deps compartidas + `use_cache=False` +
-      dependencia async) y 6 tests pasando
-- [x] Lint limpio (`ruff check` + `ruff format`)
-- [x] Fix crítico: `inspect_app()` devolvía 0 rutas en apps que usan
-      `APIRouter` + `include_router()` sobre Starlette reciente (rutas
-      envueltas en un objeto interno, ya no planas en `app.routes`).
-- [x] Fix crítico: incluso resolviendo lo anterior, el prefijo de
-      `include_router(prefix=...)` y las dependencias de
-      `include_router(dependencies=...)`/`FastAPI(dependencies=...)` no
-      llegaban al árbol (path/dependant sin fusionar) — reportaba paths
-      *incorrectos*, no solo incompletos. Corregido usando
-      `effective_candidates()` cuando está disponible, con fallback si no.
-- [x] Fix: dependencias basadas en clase (`Depends(AlgunaClase())`) se
-      nombraban con `repr()` (dirección de memoria incluida, inestable
-      entre corridas) en vez del nombre de la clase.
-- [x] Fix: dependencias parametrizadas por factory/closure o
-      `functools.partial` (patrón muy común: rate limiting, roles,
-      paginación) colapsaban en un solo nombre indistinguible aunque fueran
-      funcionalmente distintas. Ahora se muestran con las variables
-      capturadas/bindeadas (`check{times=5}`, `require_role(role='admin')`).
-- [x] Fix: rutas WebSocket se colaban en el árbol tras el fix de routers
-      (tienen `.dependant`/`.path` pero no `.methods`).
-- [x] Fix: el export a Mermaid no escapaba `"`/`<`/`>` en los labels — con
-      el fix de closures/partial, un valor capturado con esos caracteres
-      rompía la sintaxis o se interpretaba como HTML (`<locals>`).
-- [x] Cobertura de test para `cli.py` (antes en 0): `show`, `--shared`,
-      `--uncached`, `export --format mermaid`, y los tres modos de fallo de
-      `_load_app` (path malformado, módulo inexistente, atributo
-      inexistente).
-- [x] Test de `app.dependency_overrides` — documenta que el grafo es
-      estático y no refleja overrides (comportamiento esperado, ver
+- [x] Test fixture with a real case (shared deps + `use_cache=False` +
+      async dependency) and 6 passing tests
+- [x] Clean lint (`ruff check` + `ruff format`)
+- [x] Critical fix: `inspect_app()` returned 0 routes on apps using
+      `APIRouter` + `include_router()` on recent Starlette (routes wrapped
+      in an internal object, no longer flat in `app.routes`).
+- [x] Critical fix: even after fixing the above, the prefix from
+      `include_router(prefix=...)` and the dependencies from
+      `include_router(dependencies=...)`/`FastAPI(dependencies=...)` never
+      reached the tree (path/dependant left unmerged) — reported
+      *incorrect* paths, not just incomplete ones. Fixed using
+      `effective_candidates()` when available, with a fallback if not.
+- [x] Fix: class-based dependencies (`Depends(SomeClass())`) were named
+      using `repr()` (memory address included, unstable across runs)
+      instead of the class name.
+- [x] Fix: dependencies parametrized by factory/closure or
+      `functools.partial` (a very common pattern: rate limiting, roles,
+      pagination) collapsed into a single indistinguishable name even when
+      functionally distinct. Now shown with the captured/bound values
+      (`check{times=5}`, `require_role(role='admin')`).
+- [x] Fix: WebSocket routes leaked into the tree after the router fix
+      (they have `.dependant`/`.path` but no `.methods`).
+- [x] Fix: the Mermaid export didn't escape `"`/`<`/`>` in labels — once
+      closures/partial dependencies could show captured values, one
+      containing those characters broke the syntax or got interpreted as
+      HTML (`<locals>`).
+- [x] Test coverage for `cli.py` (previously at 0): `show`, `--shared`,
+      `--uncached`, `export --format mermaid`, and the three failure modes
+      of `_load_app` (malformed path, missing module, missing attribute).
+- [x] Test for `app.dependency_overrides` — documents that the graph is
+      static and doesn't reflect overrides (expected behavior, see
       DESIGN.md §2).
-- [x] Ver DESIGN.md §7 para el detalle de cada fix y los fixtures de
-      regresión (`router_app.py`, `parametrized_app.py`, `websocket_app.py`).
+- [x] See DESIGN.md §7 for details on each fix and the regression fixtures
+      (`router_app.py`, `parametrized_app.py`, `websocket_app.py`).
+- [x] Whole repo (docs, code comments, CLI output strings, tests)
+      translated to English for a public, community-facing package.
 
-## Pendiente antes de publicar en PyPI
+## Pending before publishing to PyPI
 
-- [x] CI en GitHub Actions: lint + tests, matriz contra 3 versiones de
-      FastAPI (0.110, 0.120, 0.141)
-- [x] `.github/workflows/release.yml` (mismo patrón que errand: build con
-      `uv build`, publish vía `pypa/gh-action-pypi-publish` + OIDC,
-      disparado por tag `v*`) y entorno de GitHub `pypi` creado en el repo.
-      Falta el lado de PyPI: registrar el "pending publisher" en
-      https://pypi.org/manage/account/publishing/ (Owner `jmiguelmangas`,
-      Repository `fastapi-depgraph`, Workflow `release.yml`, Environment
-      `pypi`) — requiere login interactivo, no se puede hacer por CLI/API.
-- [x] `LICENSE` (MIT, coherente con lo declarado en `pyproject.toml`)
-- [x] Un ejemplo más grande en `examples/` (10-15 rutas) para el README —
-      es lo que vende el paquete de un vistazo
-- [ ] Decidir y documentar el gesto de comunidad hacia `fastapi-di-viz`
-      (issue mencionando el proyecto nuevo — ver CLAUDE.md)
-- [x] Nombre confirmado libre en PyPI (`fastapi-depgraph`, verificado
-      2026-08-16 vía `pypi.org/pypi/fastapi-depgraph/json` → 404)
+- [x] CI on GitHub Actions: lint + tests, matrix against 3 FastAPI
+      versions (0.110, 0.120, 0.141)
+- [x] `.github/workflows/release.yml` (same pattern as errand: build with
+      `uv build`, publish via `pypa/gh-action-pypi-publish` + OIDC,
+      triggered by `v*` tags) and the `pypi` GitHub environment created on
+      the repo.
+- [x] PyPI-side trusted publisher registered (pending publisher: owner
+      `jmiguelmangas`, repository `fastapi-depgraph`, workflow
+      `release.yml`, environment `pypi`).
+- [x] `LICENSE` (MIT, consistent with what's declared in `pyproject.toml`)
+- [x] A bigger example in `examples/` (10-15 routes) for the README — it's
+      what sells the package at a glance
+- [ ] Decide and document the community gesture toward `fastapi-di-viz`
+      (an issue mentioning this new project — see CLAUDE.md)
+- [x] Name confirmed available on PyPI (`fastapi-depgraph`, verified
+      2026-08-16 via `pypi.org/pypi/fastapi-depgraph/json` → 404)
+- [ ] Tag and push `v0.1.0` to trigger the release workflow and the actual
+      publish
 
-## v0.2 (después de publicar 0.1)
+## v0.2 (after publishing 0.1)
 
-- [ ] `TimedDepends` — reemplazo drop-in de `Depends()`, opt-in, sin tocar
-      `solve_dependencies` (ver DESIGN.md §3)
-- [ ] Endpoint de debug opcional para exponer el timing
+- [ ] `TimedDepends` — drop-in replacement for `Depends()`, opt-in, without
+      touching `solve_dependencies` (see DESIGN.md §3)
+- [ ] Optional debug endpoint to expose the timing

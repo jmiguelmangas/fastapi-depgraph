@@ -1,7 +1,7 @@
-"""App que usa APIRouter + include_router, y una dependencia basada en
-clase — el patrón que rompía la detección de rutas en versiones recientes
-de Starlette (ver inspect.py:_iter_api_routes) porque las rutas incluidas
-vía router dejaron de aparecer como ``APIRoute`` planas en ``app.routes``.
+"""App using APIRouter + include_router, plus a class-based dependency —
+the pattern that broke route detection on recent Starlette versions (see
+inspect.py:_iter_resolved_routes), because routes included via a router
+stopped showing up as flat ``APIRoute`` objects in ``app.routes``.
 """
 
 from typing import Annotated
