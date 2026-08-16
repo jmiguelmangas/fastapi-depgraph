@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # route.dependant es la única superficie interna de FastAPI que se
+        # toca en este paquete — matriz amplia para detectar pronto si
+        # cambia de forma entre versiones.
+        fastapi-version: ["0.110.0", "0.120.0", "0.141.1"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --break-system-packages -e ".[dev]"
+      - run: pip install --break-system-packages "fastapi==${{ matrix.fastapi-version }}"
+      - run: ruff check src/ tests/
+      - run: ruff format --check src/ tests/
+      - run: pytest tests/ -v
