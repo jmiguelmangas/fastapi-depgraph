@@ -1,6 +1,6 @@
 [project]
 name = "fastapi-depgraph"
-version = "0.1.0"
+version = "0.1.1"
 description = "Introspection of a FastAPI app's Depends() tree: shared dependencies, uncached ones, and export to Mermaid/ASCII."
 readme = "README.md"
 requires-python = ">=3.10"
