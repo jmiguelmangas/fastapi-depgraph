@@ -1,5 +1,16 @@
 # fastapi-depgraph
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jmiguelmangas/fastapi-depgraph/main/assets/logo.png" alt="fastapi-depgraph logo" width="200">
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/fastapi-depgraph/"><img src="https://img.shields.io/pypi/v/fastapi-depgraph.svg" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/fastapi-depgraph/"><img src="https://img.shields.io/pypi/pyversions/fastapi-depgraph.svg" alt="Supported Python versions"></a>
+  <a href="https://github.com/jmiguelmangas/fastapi-depgraph/actions/workflows/ci.yml"><img src="https://github.com/jmiguelmangas/fastapi-depgraph/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <a href="https://github.com/jmiguelmangas/fastapi-depgraph/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/fastapi-depgraph.svg" alt="License"></a>
+</p>
+
 Introspection of a FastAPI app's `Depends()` tree: which dependencies each
 route resolves, which are shared across routes, which aren't cached, and
 export to ASCII or Mermaid.
