@@ -48,16 +48,20 @@
 
 - [x] CI en GitHub Actions: lint + tests, matriz contra 3 versiones de
       FastAPI (0.110, 0.120, 0.141)
-- [ ] Trusted Publishing configurado (mismo patrón que errand)
+- [x] `.github/workflows/release.yml` (mismo patrón que errand: build con
+      `uv build`, publish vía `pypa/gh-action-pypi-publish` + OIDC,
+      disparado por tag `v*`) y entorno de GitHub `pypi` creado en el repo.
+      Falta el lado de PyPI: registrar el "pending publisher" en
+      https://pypi.org/manage/account/publishing/ (Owner `jmiguelmangas`,
+      Repository `fastapi-depgraph`, Workflow `release.yml`, Environment
+      `pypi`) — requiere login interactivo, no se puede hacer por CLI/API.
 - [x] `LICENSE` (MIT, coherente con lo declarado en `pyproject.toml`)
 - [x] Un ejemplo más grande en `examples/` (10-15 rutas) para el README —
       es lo que vende el paquete de un vistazo
 - [ ] Decidir y documentar el gesto de comunidad hacia `fastapi-di-viz`
       (issue mencionando el proyecto nuevo — ver CLAUDE.md)
-- [ ] Revisar nombre final en PyPI antes de reservarlo (`fastapi-depgraph`
-      sigue libre a la fecha de este documento, pero conviene confirmar
-      justo antes del primer `twine upload` / primer push con Trusted
-      Publishing)
+- [x] Nombre confirmado libre en PyPI (`fastapi-depgraph`, verificado
+      2026-08-16 vía `pypi.org/pypi/fastapi-depgraph/json` → 404)
 
 ## v0.2 (después de publicar 0.1)
 
