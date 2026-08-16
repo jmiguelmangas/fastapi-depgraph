@@ -43,7 +43,7 @@ Issues = "https://github.com/jmiguelmangas/fastapi-depgraph/issues"
 depgraph = "fastapi_depgraph.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [build-system]
 requires = ["hatchling"]

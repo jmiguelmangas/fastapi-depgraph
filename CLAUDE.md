@@ -59,9 +59,11 @@ PYTHONPATH=. depgraph show tests.fixtures.sample_app:app --shared --uncached
 
 ## Current status
 
-v0.1 functional: `inspect_app`, `shared_dependencies()`,
-`uncached_dependencies()`, ASCII and Mermaid export, CLI with
-`show`/`export`. 23 tests passing, including regressions for
-`APIRouter`/`include_router()` nesting, parametrized (factory/closure,
+Published on PyPI as `fastapi-depgraph` v0.1.0
+(https://pypi.org/project/fastapi-depgraph/). `inspect_app`,
+`shared_dependencies()`, `uncached_dependencies()`, ASCII and Mermaid
+export, CLI with `show`/`export`. 23 tests passing, including regressions
+for `APIRouter`/`include_router()` nesting, parametrized (factory/closure,
 `functools.partial`) dependencies, and WebSocket route exclusion. See
-TASKS.md for what's left before/after publishing.
+TASKS.md for what's left (v0.2 timing, the `fastapi-di-viz` community
+gesture).

@@ -64,8 +64,13 @@
       (an issue mentioning this new project — see CLAUDE.md)
 - [x] Name confirmed available on PyPI (`fastapi-depgraph`, verified
       2026-08-16 via `pypi.org/pypi/fastapi-depgraph/json` → 404)
-- [ ] Tag and push `v0.1.0` to trigger the release workflow and the actual
-      publish
+- [x] Logo (`assets/logo.png`) + README header with badges, PyPI metadata
+      (authors, keywords, classifiers, project URLs) and a `py.typed`
+      marker — same polish pattern as errand.
+- [x] **Published**: `v0.1.0` tagged and pushed, release workflow ran
+      clean, live on PyPI at https://pypi.org/project/fastapi-depgraph/ —
+      verified by installing from the real index (not the local build)
+      and running the CLI against the example app.
 
 ## v0.2 (after publishing 0.1)
 
